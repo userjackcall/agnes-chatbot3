@@ -1,0 +1,867 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agnes AI Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-theme" />
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+  <style>
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-sidebar: #16162b;
+      --bg-surface: #1e1e38;
+      --bg-surface-alt: #1a1a33;
+      --bg-pre: #0d0d1f;
+      --bg-conv-active: #2a1f5e;
+      --bg-toast: #1e1e38;
+      --bg-overlay: rgba(0,0,0,.5);
+      --border: #2a2a4a;
+      --text-primary: #e2e8f0;
+      --text-heading: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-conversation: #cbd5e1;
+      --text-placeholder: #475569;
+      --text-footer: #334155;
+      --scrollbar-thumb: #2a2a4a;
+      --scrollbar-thumb-hover: #3a3a5a;
+    }
+    [data-theme="light"] {
+      --bg-primary: #f8fafc;
+      --bg-sidebar: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-surface-alt: #ffffff;
+      --bg-pre: #f8fafc;
+      --bg-conv-active: #ede9fe;
+      --bg-toast: #ffffff;
+      --bg-overlay: rgba(0,0,0,.3);
+      --border: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-heading: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --text-conversation: #334155;
+      --text-placeholder: #94a3b8;
+      --text-footer: #94a3b8;
+      --scrollbar-thumb: #cbd5e1;
+      --scrollbar-thumb-hover: #94a3b8;
+    }
+    @media (prefers-color-scheme: light) {
+      [data-theme="system"] {
+        --bg-primary: #f8fafc;
+        --bg-sidebar: #f1f5f9;
+        --bg-surface: #ffffff;
+        --bg-surface-alt: #ffffff;
+        --bg-pre: #f8fafc;
+        --bg-conv-active: #ede9fe;
+        --bg-toast: #ffffff;
+        --bg-overlay: rgba(0,0,0,.3);
+        --border: #e2e8f0;
+        --text-primary: #0f172a;
+        --text-heading: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --text-conversation: #334155;
+        --text-placeholder: #94a3b8;
+        --text-footer: #94a3b8;
+        --scrollbar-thumb: #cbd5e1;
+        --scrollbar-thumb-hover: #94a3b8;
+      }
+    }
+    *,
+    *::before,
+    *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); }
+    #app { height: 100%; display: flex; }
+    .sidebar { width: 280px; min-width: 280px; background: var(--bg-sidebar); display: flex; flex-direction: column; border-right: 1px solid var(--border); transition: transform .3s ease; }
+    .sidebar-header { padding: 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-header .logo { width: 32px; height: 32px; background: linear-gradient(135deg, #7c3aed, #a855f7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #fff; }
+    .sidebar-header h1 { font-size: 16px; font-weight: 700; color: var(--text-heading); }
+    .sidebar-header .version { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+    .sidebar-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .sidebar-body .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 16px 0 6px 8px; }
+    .sidebar-body .section-label:first-child { margin-top: 0; }
+    .sidebar-body .setting-group { margin-bottom: 14px; }
+    .sidebar-body .setting-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; margin-left: 2px; }
+    .sidebar-body .setting-group input, .sidebar-body .setting-group select, .sidebar-body .setting-group textarea { width: 100%; padding: 8px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); font-size: 13px; outline: none; transition: border-color .2s; }
+    .sidebar-body .setting-group input:focus, .sidebar-body .setting-group select:focus, .sidebar-body .setting-group textarea:focus { border-color: #7c3aed; }
+    .sidebar-body .setting-group textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .sidebar-body .setting-group input::placeholder, .sidebar-body .setting-group textarea::placeholder { color: var(--text-placeholder); }
+    .sidebar-body .setting-group .input-with-btn { display: flex; gap: 6px; }
+    .sidebar-body .setting-group .input-with-btn input { flex: 1; }
+    .test-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; transition: all .2s; flex-shrink: 0; }
+    .test-btn:hover:not(:disabled) { background: var(--border); color: var(--text-primary); }
+    .test-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .test-btn .spinner-sm { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.2); border-top-color: #a78bfa; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    .test-btn.success { border-color: #22c55e; color: #22c55e; }
+    .test-btn.fail { border-color: #ef4444; color: #ef4444; }
+    .api-key-link { display: inline-block; font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-left: 2px; text-decoration: none; transition: color .2s; }
+    .api-key-link:hover { color: #a78bfa; text-decoration: underline; }
+    .model-status { font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-left: 2px; }
+    .model-status.loaded { color: #22c55e; }
+    .model-status.error { color: #ef4444; }
+    .context-window { margin-top: 8px; padding: 12px; background: var(--bg-surface-alt); border: 1px solid var(--border); border-radius: 10px; }
+    .context-window .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .context-window .header .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 600; }
+    .context-window .header .count { font-size: 12px; color: var(--text-secondary); font-family: 'SF Mono', 'Cascadia Code', monospace; }
+    .context-window .header .count strong { color: var(--text-primary); }
+    .context-window .bar { width: 100%; height: 6px; background: var(--bg-surface); border-radius: 3px; overflow: hidden; }
+    .context-window .bar .fill { height: 100%; border-radius: 3px; transition: width .4s ease, background .4s ease; }
+    .context-window .bar .fill.safe { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+    .context-window .bar .fill.warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .context-window .bar .fill.danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .context-window .legend { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-placeholder); margin-top: 4px; }
+    .sidebar-body .model-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+    .sidebar-body .model-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+    .conversation-list { margin-top: 4px; }
+    .conversation-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text-conversation); transition: background .2s; margin-bottom: 2px; }
+    .conversation-item:hover { background: var(--bg-surface); }
+    .conversation-item.active { background: var(--bg-conv-active); color: var(--text-primary); }
+    .conversation-item .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .conversation-item .del-btn { opacity: 0; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; transition: opacity .2s, color .2s; }
+    .conversation-item:hover .del-btn, .conversation-item:hover .export-btn { opacity: 1; }
+    .conversation-item .del-btn:hover { color: #ef4444; background: var(--border); }
+    .conversation-item .export-btn { opacity: 0; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 4px; transition: opacity .2s, color .2s; }
+    .conversation-item .export-btn:hover { color: #22c55e; background: var(--border); }
+    .conv-list-header { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 6px 0; }
+    .conv-list-header .section-label { margin: 0 0 0 8px; }
+    .import-btn { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: color .2s, background .2s; }
+    .import-btn:hover { color: var(--text-primary); background: var(--bg-surface); }
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+    .top-bar { display: none; padding: 12px 16px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); align-items: center; gap: 10px; }
+    .top-bar .logo-sm { width: 28px; height: 28px; background: linear-gradient(135deg, #7c3aed, #a855f7); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; color: #fff; }
+    .top-bar h2 { font-size: 14px; font-weight: 600; color: var(--text-heading); flex: 1; }
+    .top-bar .hamburger { background: none; border: none; color: var(--text-secondary); font-size: 22px; cursor: pointer; padding: 4px; }
+    .chat-area { flex: 1; overflow-y: auto; padding: 0; scroll-behavior: smooth; }
+    .chat-area .messages-container { max-width: 800px; margin: 0 auto; padding: 24px 24px 0; }
+    .chat-area .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px 20px; color: var(--text-placeholder); }
+    .chat-area .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: .5; }
+    .chat-area .empty-state h2 { font-size: 20px; color: var(--text-muted); margin-bottom: 8px; }
+    .chat-area .empty-state p { font-size: 14px; max-width: 360px; line-height: 1.6; }
+    .message { display: flex; gap: 12px; margin-bottom: 24px; animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .message .avatar { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; margin-top: 2px; }
+    .message.user .avatar { background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff; }
+    .message.assistant .avatar { background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; }
+    .message.system .avatar { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: var(--bg-surface); }
+    .message .bubble { flex: 1; min-width: 0; }
+    .message .bubble .top-row { display: flex; align-items: center; margin-bottom: 4px; }
+    .message .bubble .top-row .name { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .message .bubble .bottom-row { display: flex; align-items: center; margin-top: 6px; }
+    .message .bubble .bottom-row .copy-btn { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); font-size: 11px; cursor: pointer; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; transition: background .2s, color .15s, border-color .15s; }
+    .message .bubble .bottom-row .copy-btn:hover { background: var(--border); color: var(--text-primary); border-color: var(--text-muted); }
+    .message .bubble .bottom-row .copy-btn.copied { color: #22c55e; border-color: #22c55e; }
+    .message .bubble .content { font-size: 14px; line-height: 1.7; color: var(--text-primary); word-wrap: break-word; overflow-wrap: break-word; }
+    .message .bubble .content p { margin-bottom: 10px; }
+    .message .bubble .content p:last-child { margin-bottom: 0; }
+    .message .bubble .content ul, .message .bubble .content ol { margin: 6px 0 10px 20px; }
+    .message .bubble .content li { margin-bottom: 4px; }
+    .message .bubble .content code:not(pre code) { background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f472b6; }
+    .message .bubble .content pre { background: var(--bg-pre) !important; border: 1px solid var(--border); border-radius: 0 0 8px 8px; padding: 14px 16px; overflow-x: auto; margin: 0; }
+    .code-block-wrap { border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; }
+    .code-block-wrap .code-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 4px 8px; background: var(--bg-surface); border-bottom: 1px solid var(--border); }
+    .code-block-wrap .code-toolbar .code-lang { font-size: 11px; color: var(--text-muted); margin-right: auto; }
+    .code-block-wrap .code-toolbar .code-btn { background: none; border: 1px solid var(--border); color: var(--text-secondary); font-size: 11px; cursor: pointer; padding: 3px 8px; border-radius: 4px; transition: background .2s, color .15s; }
+    .code-block-wrap .code-toolbar .code-btn:hover { background: var(--border); color: var(--text-primary); }
+    .code-block-wrap .code-toolbar .code-btn.copied { color: #22c55e; border-color: #22c55e; }
+    .message .bubble .content pre code { background: none; padding: 0; color: inherit; font-size: 13px; line-height: 1.5; }
+    .message .bubble .content .image-result { margin: 8px 0; }
+    .message .bubble .content .image-result img { max-width: 100%; border-radius: 8px 8px 0 0; box-shadow: 0 4px 16px rgba(0,0,0,.3); display: block; }
+    .message .bubble .content .image-result .image-actions { display: flex; gap: 6px; padding: 6px 8px; background: var(--bg-surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; }
+    .message .bubble .content .image-result .image-save-btn { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); font-size: 11px; cursor: pointer; padding: 4px 10px; border-radius: 4px; transition: background .2s, color .15s; }
+    .message .bubble .content .image-result .image-save-btn:hover { background: var(--border); color: var(--text-primary); }
+    .message .bubble .content .video-result { margin: 8px 0; }
+    .message .bubble .content .video-result video { max-width: 100%; border-radius: 8px 8px 0 0; box-shadow: 0 4px 16px rgba(0,0,0,.3); display: block; }
+    .message .bubble .content .video-pending { display: flex; align-items: center; gap: 8px; padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
+    .message .bubble .content blockquote { border-left: 3px solid #7c3aed; padding-left: 12px; color: var(--text-secondary); margin: 8px 0; }
+    .message .bubble .content table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+    .message .bubble .content th, .message .bubble .content td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+    .message .bubble .content th { background: var(--bg-surface); color: var(--text-secondary); font-weight: 600; }
+    .message .bubble .content a { color: #a78bfa; text-decoration: underline; }
+    .message .bubble .content a:hover { color: #c4b5fd; }
+    .message .bubble .content .thinking-content { background: rgba(124, 58, 237, 0.08); border-left: 2px solid #7c3aed; border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 6px 0; font-size: 13px; color: #a78bfa; }
+    .message .bubble .content .typing-cursor { display: inline-block; width: 6px; height: 16px; background: #a78bfa; animation: blink 1s steps(1) infinite; vertical-align: text-bottom; margin-left: 2px; border-radius: 1px; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .input-area { border-top: 1px solid var(--border); background: var(--bg-sidebar); padding: 16px 24px; }
+    .input-area .input-inner { max-width: 800px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; }
+    .input-area .attach-btn { width: 48px; height: 48px; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .2s, color .2s; }
+    .input-area .attach-btn:hover { background: var(--border); color: var(--text-primary); }
+    .input-area .image-preview { max-width: 800px; margin: 0 auto 8px; position: relative; display: inline-block; }
+    .input-area .image-preview img { max-height: 120px; max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+    .input-area .image-preview .remove-img, .input-area .pdf-preview .remove-img { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; background: #ef4444; color: #fff; border: 2px solid var(--bg-sidebar); font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .input-area .pdf-preview { max-width: 800px; margin: 0 auto 8px; }
+    .input-area .pdf-preview .pdf-info { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
+    .input-area .pdf-preview .pdf-pages { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; padding: 4px 0; }
+    .input-area .pdf-preview .pdf-pages img { height: 100px; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0; }
+    .input-area textarea { flex: 1; padding: 12px 16px; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; resize: none; min-height: 48px; max-height: 160px; line-height: 1.5; transition: border-color .2s; }
+    .input-area textarea:focus { border-color: #7c3aed; }
+    .input-area textarea::placeholder { color: var(--text-placeholder); }
+    .input-area .send-btn { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #7c3aed, #a855f7); border: none; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s, transform .15s; flex-shrink: 0; }
+    .input-area .send-btn:hover:not(:disabled) { opacity: .9; transform: scale(1.03); }
+    .input-area .send-btn:active:not(:disabled) { transform: scale(.95); }
+    .input-area .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .input-area .send-btn .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .input-area .input-footer { max-width: 800px; margin: 6px auto 0; text-align: center; font-size: 11px; color: var(--text-footer); }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 18px; border-radius: 8px; font-size: 13px; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,.5); transition: opacity .3s, transform .3s; pointer-events: none; }
+    .toast.hidden { opacity: 0; transform: translateX(-50%) translateY(10px); pointer-events: none; }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: var(--bg-overlay); z-index: 90; }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.show { display: block; }
+      .top-bar { display: flex; }
+      .messages-container { padding: 16px 16px 0 !important; }
+      .input-area { padding: 12px 16px; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    .btn-new-chat { width: 100%; padding: 8px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #a855f7); border: none; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-new-chat:hover { opacity: .9; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="sidebar-overlay" :class="{ show: sidebarOpen }" @click="sidebarOpen = false"></div>
+    <aside class="sidebar" :class="{ open: sidebarOpen }">
+      <div class="sidebar-header">
+        <div class="logo">A</div>
+        <h1>Agnes AI</h1>
+        <span class="version">v1.0</span>
+      </div>
+      <div class="sidebar-body">
+        <button class="btn-new-chat" @click="newChat"><span>+</span> 新對話</button>
+        <div v-if="conversations.length > 0" style="margin-top: 16px;">
+          <div class="conv-list-header">
+            <div class="section-label">對話記錄</div>
+            <button class="import-btn" @click="importConversation" title="從 JSON 檔案匯入對話">↑ 匯入</button>
+          </div>
+          <div class="conversation-list">
+            <div v-for="(conv, idx) in conversations" :key="conv.id" class="conversation-item" :class="{ active: conv.id === activeConvId }" @click="switchConversation(conv.id)">
+              <span class="title">{{ conv.title || '新對話' }}</span>
+              <div style="display:flex;gap:2px;flex-shrink:0;">
+                <button class="export-btn" @click.stop="exportConversation(conv.id)" title="匯出為 JSON">↓</button>
+                <button class="del-btn" @click.stop="deleteConversation(conv.id)" title="刪除對話">&times;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-label">設定</div>
+        <div class="setting-group">
+          <label>API Key</label>
+          <a href="https://platform.agnes-ai.com/settings/apiKeys" target="_blank" class="api-key-link">申請 Agnes AI API Key →</a>
+          <div class="input-with-btn">
+            <input type="password" v-model="apiKey" placeholder="sk-..." @input="onApiKeyChange" />
+            <button class="test-btn" @click="testConnection" :disabled="testingConnection || !apiKey">
+              <span v-if="!testingConnection">連接</span>
+              <span v-else class="spinner-sm"></span>
+            </button>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label>API 端點</label>
+          <input type="url" v-model="apiEndpoint" placeholder="https://apihub.agnes-ai.com/v1/" @input="saveEndpoint" />
+        </div>
+        <div class="setting-group">
+          <label>模型</label>
+          <select v-model="model" :disabled="!modelsLoaded">
+            <option v-if="models.length === 0" value="">載入模型中...</option>
+            <option v-for="m in models" :key="m.id" :value="m.id">{{ m.id }}</option>
+          </select>
+          <div v-if="modelsError" class="model-status error">{{ modelsError }}</div>
+          <div v-else-if="modelsLoaded" class="model-status loaded">✓ {{ models.length }} 個模型可用</div>
+          <div v-else class="model-status">輸入 API Key 後點擊「測試」載入模型清單</div>
+        </div>
+        <div class="setting-group">
+          <label>溫度 (Temperature)</label>
+          <input type="range" min="0" max="2" step="0.1" v-model.number="temperature" />
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:2px;">
+            <span>精準</span>
+            <span>{{ temperature.toFixed(1) }}</span>
+            <span>創意</span>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label>佈景主題</label>
+          <select v-model="theme">
+            <option value="dark">深色</option>
+            <option value="light">淺色</option>
+            <option value="system">跟隨系統</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>系統提示詞 (System Prompt)</label>
+          <textarea v-model="systemPrompt" placeholder="可選：設定 AI 的人設或行為規則"></textarea>
+        </div>
+        <div class="model-badge">
+          <span class="dot"></span>
+          Agnes AI · 1M 上下文窗口
+        </div>
+        <div class="context-window">
+          <div class="header">
+            <span class="label">上下文用量</span>
+            <span class="count"><strong>{{ estimatedTokens.toLocaleString() }}</strong> / {{ contextWindowMax.toLocaleString() }}</span>
+          </div>
+          <div class="bar">
+            <div class="fill" :class="contextBarClass" :style="{ width: contextPercent + '%' }"></div>
+          </div>
+          <div class="legend">
+            <span>0</span>
+            <span>{{ contextPercent > 50 ? '剩 ' + contextRemaining.toLocaleString() : '' }}</span>
+            <span>{{ contextWindowMax.toLocaleString() }}</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="top-bar">
+        <button class="hamburger" @click="sidebarOpen = true">&#9776;</button>
+        <div class="logo-sm">A</div>
+        <h2>Agnes AI</h2>
+      </div>
+      <div class="chat-area" ref="chatArea">
+        <div class="messages-container">
+          <div v-if="messages.length === 0" class="empty-state">
+            <div class="icon">&#10024;</div>
+            <h2>開始對話</h2>
+            <p>輸入一個問題來開始與 Agnes AI 對話。<br/>支援 Markdown、程式碼高亮、以及長上下文記憶。</p>
+          </div>
+          <div v-for="(msg, idx) in messages" :key="idx" class="message" :class="msg.role">
+            <div class="avatar">{{ msg.role === 'user' ? '你' : msg.role === 'assistant' ? 'A' : 'S' }}</div>
+            <div class="bubble">
+              <div class="top-row">
+                <span class="name">{{ msg.role === 'user' ? '你' : msg.role === 'assistant' ? 'Agnes AI' : '系統' }}</span>
+              </div>
+              <div class="content" v-html="msg.html" @click="handleCodeAction($event, idx)"></div>
+              <div class="bottom-row">
+                <button class="copy-btn" :class="{ copied: msg.copied }" @click="copyMessage(idx)">{{ msg.copied ? '✓ 已複製' : '📋 複製' }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <div v-if="attachedImage" class="image-preview">
+          <img :src="attachedImage" alt="已附加圖片" />
+          <button class="remove-img" @click="removeAttachedImage">&times;</button>
+        </div>
+        <div v-if="attachedPdf" class="pdf-preview">
+          <div class="pdf-info">
+            <span>&#128196;</span>
+            <span>{{ attachedPdf.name }} ({{ attachedPdf.pages.length }} 頁)</span>
+            <button class="remove-img" style="position:static;flex-shrink:0;margin-left:auto" @click="removeAttachedPdf">&times;</button>
+          </div>
+          <div class="pdf-pages">
+            <img v-for="(page, pi) in attachedPdf.pages" :key="pi" :src="page" :alt="'第'+(pi+1)+'頁'" />
+          </div>
+        </div>
+        <div class="input-inner">
+          <button class="attach-btn" @click="$refs.fileInput.click()" :disabled="loading" title="附加圖片">&#128247;</button>
+          <input ref="fileInput" type="file" accept="image/*" @change="attachImage" style="display:none" />
+          <button class="attach-btn" @click="$refs.pdfInput.click()" :disabled="loading" title="附加 PDF">&#128196;</button>
+          <input ref="pdfInput" type="file" accept=".pdf,application/pdf" @change="attachPdf" style="display:none" />
+          <textarea ref="inputArea" v-model="userInput" @keydown="onInputKeydown" :disabled="loading" placeholder="輸入訊息... (Enter 送出, Shift+Enter 換行)" rows="1" @input="autoResize" @paste="onPaste"></textarea>
+          <button class="send-btn" @click="sendMessage" :disabled="loading || !userInput.trim()">
+            <span v-if="!loading">&#10148;</span>
+            <span v-else class="spinner"></span>
+          </button>
+        </div>
+        <div class="input-footer">Agnes AI Chat &middot; 資料僅儲存在本地瀏覽器</div>
+      </div>
+    </main>
+    <div class="toast" :class="{ hidden: !toastMsg }">{{ toastMsg }}</div>
+  </div>
+  <script>
+    const { createApp, ref, computed, watch, nextTick, onMounted } = Vue;
+    marked.setOptions({ breaks: true, gfm: true, highlight: function(code, lang) { if (lang && hljs.getLanguage(lang)) { try { return hljs.highlight(code, { language: lang }).value; } catch(_) {} } return hljs.highlightAuto(code).value; } });
+    const app = createApp({ setup() {
+      const apiKey = ref(localStorage.getItem('agnes_api_key') || '');
+      const apiEndpoint = ref(localStorage.getItem('agnes_endpoint') || 'https://apihub.agnes-ai.com/v1/');
+      const model = ref('agnes-2.0-flash');
+      const temperature = ref(0.7);
+      const theme = ref(localStorage.getItem('agnes_theme') || 'dark');
+      const systemPrompt = ref(localStorage.getItem('agnes_system_prompt') || '你是一位樂於助人的 AI 助手。請用繁體中文回答。');
+      const models = ref([]);
+      const testingConnection = ref(false);
+      const modelsLoaded = ref(false);
+      const modelsError = ref('');
+      const conversations = ref(JSON.parse(localStorage.getItem('agnes_conversations') || '[]'));
+      const activeConvId = ref(localStorage.getItem('agnes_active_conv') || null);
+      const messages = ref([]);
+      const userInput = ref('');
+      const attachedImage = ref(null);
+      const attachedPdf = ref(null);
+      const loading = ref(false);
+      const toastMsg = ref('');
+      let toastTimer = null;
+      const sidebarOpen = ref(false);
+      const chatArea = ref(null);
+      const inputArea = ref(null);
+      const fileInput = ref(null);
+      const pdfInput = ref(null);
+      const activeConv = computed(() => conversations.value.find(c => c.id === activeConvId.value) || null);
+      function estimateTokens(text) { if (!text) return 0; return Math.ceil(text.length / 2); }
+      const contextWindowMax = 1000000;
+      const estimatedTokens = computed(() => {
+        let total = 0;
+        if (systemPrompt.value) total += estimateTokens(systemPrompt.value);
+        const conv = activeConv.value;
+        if (conv) { for (const m of conv.messages) total += estimateTokens(m.content); }
+        if (userInput.value) total += estimateTokens(userInput.value);
+        return total;
+      });
+      const contextPercent = computed(() => Math.min(100, +(estimatedTokens.value / contextWindowMax * 100).toFixed(1)));
+      const contextRemaining = computed(() => Math.max(0, contextWindowMax - estimatedTokens.value));
+      const contextBarClass = computed(() => { const p = contextPercent.value; if (p >= 90) return 'danger'; if (p >= 70) return 'warn'; return 'safe'; });
+      function loadMessages() {
+        const conv = activeConv.value;
+        if (conv) {
+          messages.value = conv.messages.map(m => ({
+            ...m,
+            html: m.type === 'image' ? '<div class="image-result"><img src="' + m.content.replace(/"/g,'&quot;') + '" alt="生成的圖片" /><div class="image-actions"><button class="image-save-btn" data-action="save-image" data-url="' + m.content.replace(/"/g,'&quot;') + '">↓ 另存圖片</button></div></div>' : m.type === 'video' ? '<div class="video-result"><video src="' + m.content.replace(/"/g,'&quot;') + '" controls style="max-width:100%;border-radius:8px;"></video><div class="image-actions"><button class="image-save-btn" data-action="save-video" data-url="' + m.content.replace(/"/g,'&quot;') + '">↓ 下載影片</button></div></div>' : renderMarkdown(m.content)
+          }));
+        } else { messages.value = []; }
+      }
+      function persistConversations() { localStorage.setItem('agnes_conversations', JSON.stringify(conversations.value)); }
+      function saveApiKey() { localStorage.setItem('agnes_api_key', apiKey.value); }
+      function saveEndpoint() { localStorage.setItem('agnes_endpoint', apiEndpoint.value); }
+      function saveSystemPrompt() { localStorage.setItem('agnes_system_prompt', systemPrompt.value); }
+      function apiUrl(path) { const ep = apiEndpoint.value.replace(/\/+$/, ''); return ep + '/' + path.replace(/^\/+/, ''); }
+      async function testConnection() {
+        if (!apiKey.value) { showToast('請先輸入 API Key'); return; }
+        testingConnection.value = true;
+        modelsError.value = '';
+        try {
+          const resp = await fetch(apiUrl('models'), { headers: { 'Authorization': 'Bearer ' + apiKey.value } });
+          if (!resp.ok) { let d = 'HTTP ' + resp.status; try { const e = await resp.json(); d = e.error?.message || d; } catch(_) {} throw new Error(d); }
+          const data = await resp.json();
+          const list = (data.data || []).filter(function(m) { return m.id; });
+          models.value = list;
+          modelsLoaded.value = true;
+          if (list.length > 0 && !list.find(function(m) { return m.id === model.value; })) model.value = list[0].id;
+          showToast('連線成功！已載入 ' + list.length + ' 個模型');
+        } catch(err) { modelsError.value = err.message; showToast('連線失敗: ' + err.message); }
+        finally { testingConnection.value = false; }
+      }
+      function onApiKeyChange() { saveApiKey(); models.value = []; modelsLoaded.value = false; modelsError.value = ''; }
+      function renderMarkdown(text) {
+        if (!text) return '';
+        let processed = text;
+        processed = processed.replace(/```thinking\s*([\s\S]*?)```/g, (_, content) => { const md = marked.parse(content.trim()); return '<div class="thinking-content">' + md + '</div>'; });
+        const html = marked.parse(processed);
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        tmp.querySelectorAll('pre code').forEach(function(block) {
+          hljs.highlightElement(block);
+          var pre = block.parentElement;
+          var cls = block.getAttribute('class') || '';
+          var lang = (cls.match(/\blanguage-(\w+)/) || cls.match(/hljs-(\w+)/) || [])[1] || '';
+          var toolbarHtml = '<div class="code-toolbar"><span class="code-lang">' + (lang || 'code') + '</span><button class="code-btn" data-action="copy-code">📋 複製</button><button class="code-btn" data-action="download-code">↓ 下載</button></div>';
+          var wrap = document.createElement('div');
+          wrap.className = 'code-block-wrap';
+          wrap.innerHTML = toolbarHtml;
+          pre.parentElement.insertBefore(wrap, pre);
+          wrap.appendChild(pre);
+        });
+        return tmp.innerHTML;
+      }
+      function scrollToBottom() { nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight; }); }
+      function autoResize(e) { const el = e ? e.target : inputArea.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; } }
+      function onInputKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+      function showToast(msg, duration) { duration = duration || 3000; toastMsg.value = msg; if (toastTimer) clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastMsg.value = ''; }, duration); }
+      function attachImage(e) {
+        var file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { showToast('圖片大小不得超過 10MB'); return; }
+        var reader = new FileReader();
+        reader.onload = function(ev) { attachedImage.value = ev.target.result; attachedPdf.value = null; };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      }
+      function removeAttachedImage() { attachedImage.value = null; }
+      function onPaste(e) {
+        var items = e.clipboardData?.items;
+        if (!items) return;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type.startsWith('image/')) {
+            var file = items[i].getAsFile();
+            if (!file) continue;
+            if (file.size > 10 * 1024 * 1024) { showToast('圖片大小不得超過 10MB'); continue; }
+            var reader = new FileReader();
+            reader.onload = function(ev) { attachedImage.value = ev.target.result; };
+            reader.readAsDataURL(file);
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+      function attachPdf(e) {
+        var file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 20 * 1024 * 1024) { showToast('PDF 大小不得超過 20MB'); return; }
+        attachedImage.value = null;
+        var reader = new FileReader();
+        reader.onload = async function(ev) {
+          var arrayBuffer = ev.target.result;
+          showToast('正在解析 PDF...');
+          try {
+            var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            var totalPages = pdf.numPages;
+            var maxPages = Math.min(totalPages, 20);
+            var pageImages = [];
+            for (var pi = 1; pi <= maxPages; pi++) {
+              var page = await pdf.getPage(pi);
+              var viewport = page.getViewport({ scale: 1.5 });
+              var canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              var ctx = canvas.getContext('2d');
+              await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+              pageImages.push(canvas.toDataURL('image/jpeg', 0.85));
+            }
+            attachedPdf.value = { name: file.name, pages: pageImages, total: totalPages };
+            showToast('已載入 ' + maxPages + '/' + totalPages + ' 頁');
+          } catch(err) { showToast('PDF 解析失敗：' + err.message); }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+      }
+      function removeAttachedPdf() { attachedPdf.value = null; }
+      function newChat() {
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        conversations.value.unshift({ id, title: '新對話', messages: [], createdAt: Date.now() });
+        activeConvId.value = id;
+        localStorage.setItem('agnes_active_conv', id);
+        messages.value = [];
+        persistConversations();
+        sidebarOpen.value = false;
+        focusInput();
+      }
+      function switchConversation(id) {
+        activeConvId.value = id;
+        localStorage.setItem('agnes_active_conv', id);
+        loadMessages();
+        sidebarOpen.value = false;
+        scrollToBottom();
+        focusInput();
+      }
+      function deleteConversation(id) {
+        conversations.value = conversations.value.filter(c => c.id !== id);
+        if (activeConvId.value === id) {
+          if (conversations.value.length > 0) { activeConvId.value = conversations.value[0].id; localStorage.setItem('agnes_active_conv', activeConvId.value); loadMessages(); }
+          else { activeConvId.value = null; localStorage.removeItem('agnes_active_conv'); messages.value = []; }
+        }
+        persistConversations();
+        scrollToBottom();
+      }
+      function ensureConversation() {
+        if (!activeConvId.value || !conversations.value.find(c => c.id === activeConvId.value)) {
+          if (conversations.value.length > 0) { activeConvId.value = conversations.value[0].id; localStorage.setItem('agnes_active_conv', activeConvId.value); loadMessages(); }
+          else { newChat(); }
+        }
+      }
+      function saveMessages() {
+        const conv = activeConv.value;
+        if (conv) {
+          conv.messages = messages.value.map(m => ({ role: m.role, content: m.content, type: m.type || '' }));
+          if (conv.messages.length > 0 && conv.messages[0].role === 'user') {
+            const firstText = conv.messages[0].content;
+            conv.title = firstText.length > 30 ? firstText.slice(0, 30) + '...' : firstText;
+          } else if (conv.title === '新對話' && conv.messages.length >= 2) {
+            const userMsg = conv.messages.find(m => m.role === 'user');
+            if (userMsg) { const t = userMsg.content; conv.title = t.length > 30 ? t.slice(0, 30) + '...' : t; }
+          }
+          persistConversations();
+        }
+      }
+      async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text || loading.value) return;
+        if (!apiKey.value) { showToast('請先在側邊欄輸入 API Key'); return; }
+        ensureConversation();
+        var userImage = attachedImage.value;
+        var userPdf = attachedPdf.value;
+        var imgHtml = userImage ? '<div style="margin-bottom:8px"><img src="' + userImage.replace(/"/g,'&quot;') + '" style="max-height:200px;max-width:100%;border-radius:8px;border:1px solid var(--border)" /></div>' : '';
+        var pdfHtml = '';
+        if (userPdf) {
+          pdfHtml = '<div style="margin-bottom:8px;font-size:12px;color:var(--text-secondary)">&#128196; ' + userPdf.name + ' (' + userPdf.pages.length + '/' + userPdf.total + ' 頁)</div>';
+          for (var ppi = 0; ppi < userPdf.pages.length; ppi++) { pdfHtml += '<div style="display:inline-block;margin:2px"><img src="' + userPdf.pages[ppi].replace(/"/g,'&quot;') + '" style="height:100px;border-radius:6px;border:1px solid var(--border)" /></div>'; }
+        }
+        messages.value.push({ role: 'user', content: text, image: userImage || undefined, pdfPages: userPdf ? userPdf.pages : undefined, html: imgHtml + pdfHtml + renderMarkdown(text) });
+        userInput.value = '';
+        attachedImage.value = null;
+        attachedPdf.value = null;
+        if (inputArea.value) inputArea.value.style.height = 'auto';
+        scrollToBottom();
+        const assistantIdx = messages.value.length;
+        messages.value.push({ role: 'assistant', content: '', html: '<span class="typing-cursor"></span>' });
+        scrollToBottom();
+        loading.value = true;
+        try {
+          var isImage = /image/i.test(model.value);
+          var isVideo = /video/i.test(model.value);
+          var apiPath = 'chat/completions';
+          var bodyPayload;
+          if (isImage) {
+            apiPath = 'images/generations';
+            bodyPayload = JSON.stringify({ model: model.value, prompt: text, n: 1, size: '1024x1024' });
+          } else if (isVideo) {
+            apiPath = 'videos';
+            bodyPayload = JSON.stringify({ model: model.value, prompt: text });
+            console.log('[Video] POST', apiUrl(apiPath), bodyPayload);
+          } else {
+            var apiMessages = [];
+            if (systemPrompt.value) apiMessages.push({ role: 'system', content: systemPrompt.value });
+            for (let i = 0; i < messages.value.length - 1; i++) {
+              const m = messages.value[i];
+              if (m.role === 'user' || m.role === 'assistant') {
+                var msgContent;
+                if (m.role === 'user' && (m.image || m.pdfPages)) {
+                  msgContent = [{ type: 'text', text: m.content }];
+                  if (m.image) msgContent.push({ type: 'image_url', image_url: { url: m.image } });
+                  if (m.pdfPages) { for (var ppi2 = 0; ppi2 < m.pdfPages.length; ppi2++) msgContent.push({ type: 'image_url', image_url: { url: m.pdfPages[ppi2] } }); }
+                } else { msgContent = m.content; }
+                apiMessages.push({ role: m.role, content: msgContent });
+              }
+            }
+            bodyPayload = JSON.stringify({ model: model.value, messages: apiMessages, temperature: temperature.value, stream: true });
+          }
+          const response = await fetch(apiUrl(apiPath), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey.value },
+            body: bodyPayload
+          });
+          if (!response.ok) {
+            let errMsg = 'HTTP ' + response.status;
+            try { const errData = await response.json(); errMsg = errData.error?.message || errMsg; } catch(_) {}
+            throw new Error(errMsg);
+          }
+          if (isImage) {
+            const data = await response.json();
+            var imgUrl = data.data?.[0]?.url || '';
+            if (imgUrl) {
+              var html = '<div class="image-result"><img src="' + imgUrl.replace(/"/g,'&quot;') + '" alt="生成的圖片" /><div class="image-actions"><button class="image-save-btn" data-action="save-image" data-url="' + imgUrl.replace(/"/g,'&quot;') + '">↓ 另存圖片</button></div></div>';
+              var finalMsg = messages.value[assistantIdx];
+              if (finalMsg) { finalMsg.type = 'image'; finalMsg.content = imgUrl; finalMsg.html = html; messages.value = [...messages.value]; }
+              saveMessages();
+            } else { throw new Error('未取得圖片網址'); }
+          } else if (isVideo) {
+            const taskData = await response.json();
+            console.log('[Video] create response', taskData);
+            var taskId = taskData.task_id || taskData.id || '';
+            if (!taskId) throw new Error('影片建立失敗，API 回應：' + JSON.stringify(taskData));
+            var msg = messages.value[assistantIdx];
+            if (msg) {
+              msg.content = '影片生成中...';
+              msg.html = '<div class="video-pending"><span class="spinner-sm" style="width:16px;height:16px;border-width:2px;"></span> 影片生成中 (任務: ' + taskId + ')...</div>';
+              messages.value = [...messages.value];
+            }
+            var videoUrl = '';
+            for (var attempt = 0; attempt < 200; attempt++) {
+              await new Promise(function(r) { setTimeout(r, 5000); });
+              var pollUrl = apiUrl('videos/' + taskId);
+              console.log('[Video] poll', pollUrl);
+              var pollResp = await fetch(pollUrl, { headers: { 'Authorization': 'Bearer ' + apiKey.value } });
+              var pollData = null;
+              if (pollResp.ok) { try { pollData = await pollResp.json(); } catch(_) {} }
+              if (!pollData) {
+                var pollUrl2 = apiUrl('video/generations/' + taskId);
+                var pollResp2 = await fetch(pollUrl2, { headers: { 'Authorization': 'Bearer ' + apiKey.value } });
+                if (pollResp2.ok) { try { pollData = await pollResp2.json(); } catch(_) {} pollUrl = pollUrl2; }
+              }
+              if (!pollData) {
+                if (msg) { msg.html = '<div class="video-pending"><span class="spinner-sm" style="width:16px;height:16px;border-width:2px;"></span> 影片生成中 (' + ((attempt+1)*5) + 's) 輪詢 ' + pollUrl + '</div>'; messages.value = [...messages.value]; }
+                continue;
+              }
+              console.log('[Video] poll response', pollData);
+              var status = (pollData.status || '').toLowerCase();
+              if (status === 'succeeded' || status === 'completed') {
+                videoUrl = pollData.video_url || pollData.url || pollData.remixed_from_video_id || pollData.output?.video_url || pollData.data?.[0]?.url || '';
+                break;
+              } else if (status === 'failed') { throw new Error(pollData.error?.message || '影片生成失敗'); }
+              if (msg) { msg.html = '<div class="video-pending"><span class="spinner-sm" style="width:16px;height:16px;border-width:2px;"></span> 影片生成中 (' + ((attempt+1)*5) + 's) ' + status + (pct ? ' ' + pct + '%' : '') + ' | ' + JSON.stringify(pollData).substring(0,200) + '</div>'; messages.value = [...messages.value]; }
+            }
+            if (!videoUrl) throw new Error('影片生成超時（超過 1000 秒）');
+            if (msg) {
+              msg.type = 'video';
+              msg.content = videoUrl;
+              msg.html = '<div class="video-result"><video src="' + videoUrl.replace(/"/g,'&quot;') + '" controls style="max-width:100%;border-radius:8px;"></video><div class="image-actions"><button class="image-save-btn" data-action="save-video" data-url="' + videoUrl.replace(/"/g,'&quot;') + '">↓ 下載影片</button></div></div>';
+              messages.value = [...messages.value];
+            }
+            saveMessages();
+          } else {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullContent = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6).trim();
+                  if (data === '[DONE]') continue;
+                  try {
+                    const parsed = JSON.parse(data);
+                    const delta = parsed.choices?.[0]?.delta;
+                    if (delta?.content) fullContent += delta.content;
+                    // Check for thinking content
+                    if (delta?.reasoning_content) {
+                      fullContent += '\n```thinking\n' + delta.reasoning_content + '\n```\n';
+                    }
+                    const finalMsg = messages.value[assistantIdx];
+                    if (finalMsg) {
+                      finalMsg.content = fullContent;
+                      finalMsg.html = renderMarkdown(fullContent);
+                      messages.value = [...messages.value];
+                    }
+                  } catch(_) {}
+                }
+              }
+            }
+            const finalMsg = messages.value[assistantIdx];
+            if (finalMsg) { finalMsg.html = renderMarkdown(fullContent); messages.value = [...messages.value]; }
+            saveMessages();
+          }
+        } catch(err) {
+          showToast('錯誤: ' + err.message);
+          messages.value.splice(assistantIdx, 1);
+          messages.value = [...messages.value];
+        } finally {
+          loading.value = false;
+          scrollToBottom();
+          focusInput();
+        }
+      }
+      function focusInput() { nextTick(() => { if (inputArea.value) inputArea.value.focus(); }); }
+      function copyMessage(idx) {
+        const msg = messages.value[idx];
+        if (!msg) return;
+        navigator.clipboard.writeText(msg.content).then(function() { msg.copied = true; messages.value = [...messages.value]; setTimeout(function() { msg.copied = false; messages.value = [...messages.value]; }, 2000); }).catch(function() { showToast('複製失敗'); });
+      }
+      function handleCodeAction(e, msgIdx) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        if (action === 'save-image' || action === 'save-video') {
+          var url = btn.getAttribute('data-url');
+          if (!url) return;
+          var ext = action === 'save-video' ? 'mp4' : 'png';
+          var prefix = action === 'save-video' ? 'agnes-video-' : 'agnes-image-';
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = prefix + Date.now() + '.' + ext;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else if (action === 'copy-code') {
+          var pre = btn.closest('.code-block-wrap')?.querySelector('pre');
+          if (!pre) return;
+          var code = pre.textContent || '';
+          navigator.clipboard.writeText(code).then(function() { btn.textContent = '✓ 已複製'; btn.classList.add('copied'); setTimeout(function() { btn.textContent = '📋 複製'; btn.classList.remove('copied'); }, 2000); }).catch(function() { showToast('複製失敗'); });
+        } else if (action === 'download-code') {
+          var pre = btn.closest('.code-block-wrap')?.querySelector('pre');
+          if (!pre) return;
+          var code = pre.textContent || '';
+          var lang = btn.closest('.code-block-wrap')?.querySelector('.code-lang')?.textContent || 'code';
+          var blob = new Blob([code], { type: 'text/plain' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = 'code.' + lang;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+      function exportConversation(id) {
+        var conv = conversations.value.find(function(c) { return c.id === id; });
+        if (!conv) return;
+        var data = JSON.stringify(conv, null, 2);
+        var blob = new Blob([data], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (conv.title || '對話') + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      function importConversation() {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(e) {
+          var file = e.target.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            try {
+              var data = JSON.parse(ev.target.result);
+              if (!data.id || !data.messages || !Array.isArray(data.messages)) { showToast('JSON 格式錯誤：缺少 id 或 messages'); return; }
+              data.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+              if (!data.title) data.title = '匯入的對話';
+              conversations.value.unshift(data);
+              persistConversations();
+              activeConvId.value = data.id;
+              localStorage.setItem('agnes_active_conv', data.id);
+              loadMessages();
+              showToast('已匯入：' + data.title);
+            } catch(err) { showToast('JSON 解析失敗：' + err.message); }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      }
+      watch(systemPrompt, function() { saveSystemPrompt(); });
+      watch(apiEndpoint, function() { models.value = []; modelsLoaded.value = false; modelsError.value = ''; saveEndpoint(); });
+      function applyTheme(val) {
+        const root = document.documentElement;
+        if (val === 'system') { root.setAttribute('data-theme', 'system'); } else { root.setAttribute('data-theme', val); }
+        const hljsLink = document.getElementById('hljs-theme');
+        if (hljsLink) {
+          const isLight = val === 'light' || (val === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+          hljsLink.href = isLight ? 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css' : 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css';
+        }
+      }
+      watch(theme, function(val) { localStorage.setItem('agnes_theme', val); applyTheme(val); });
+      onMounted(function() {
+        if (activeConvId.value) loadMessages();
+        ensureConversation();
+        setTimeout(scrollToBottom, 100);
+        focusInput();
+        applyTheme(theme.value);
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() { if (theme.value === 'system') applyTheme('system'); });
+      });
+      return {
+        apiKey, apiEndpoint, model, temperature, theme, systemPrompt,
+        models, testingConnection, modelsLoaded, modelsError,
+        conversations, activeConvId, messages, userInput,
+        attachedImage, attachedPdf, loading, toastMsg, sidebarOpen,
+        chatArea, inputArea, fileInput, pdfInput,
+        saveApiKey, saveEndpoint, saveSystemPrompt, autoResize, onInputKeydown,
+        sendMessage, attachImage, removeAttachedImage, attachPdf, removeAttachedPdf, onPaste,
+        newChat, switchConversation, deleteConversation, focusInput,
+        copyMessage, handleCodeAction, exportConversation, importConversation,
+        testConnection, onApiKeyChange,
+        estimatedTokens, contextWindowMax, contextPercent, contextRemaining, contextBarClass,
+      };
+    } });
+    app.mount('#app');
+  </script>
+</body>
+</html>
